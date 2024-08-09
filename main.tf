@@ -83,10 +83,11 @@ resource "azurerm_linux_virtual_machine" "dev-vm" {
   size = "Standard_D2s_v3"
   admin_username = "azureuser"
   network_interface_ids = [azurerm_network_interface.dev-nic.id]
+  custom_data = filebase64("${path.module}/customdata.tpl")
 
   admin_ssh_key {
     username = "azureuser"
-    public_key = file(var.ssh_key_path)
+    public_key = file("c:/Users/charl/.ssh/azurekey.pub")
   }
 
   os_disk {
@@ -99,5 +100,14 @@ resource "azurerm_linux_virtual_machine" "dev-vm" {
     offer = "UbuntuServer"
     sku = "18_04-lts-gen2"
     version = "latest"
+  }
+
+  provisioner "local-exec" {
+    command = templatefile("${path.module}/linux-ssh-script.tpl", {
+        hostname = self.public_ip_address
+        user = "azureuser"
+        identityfile = "~/.ssh/azurekey"
+    })
+    interpreter = [ "back", "-c" ]
   }
 }
