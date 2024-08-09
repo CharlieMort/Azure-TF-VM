@@ -76,38 +76,27 @@ resource "azurerm_network_interface" "dev-nic" {
   }
 }
 
-resource "azurerm_linux_virtual_machine" "dev-vm" {
-  name = "dev-vm"
+data "azurerm_shared_image" "linux-with-tools" {
+  name                = "myImageDefinition"
+  gallery_name        = "myGallery"
+  resource_group_name = "myGalleryRG"
+}
+
+resource "azurerm_virtual_machine" "dev-vm" {
+  name                = "dev-vm"
   resource_group_name = azurerm_resource_group.linux-dev-rg.name
-  location = azurerm_resource_group.linux-dev-rg.location
-  size = "Standard_D2s_v3"
-  admin_username = "azureuser"
+  location            = azurerm_resource_group.linux-dev-rg.location
+
+  vm_size               = "Standard_B1s"
   network_interface_ids = [azurerm_network_interface.dev-nic.id]
-  custom_data = filebase64("${path.module}/customdata.tpl")
-
-  admin_ssh_key {
-    username = "azureuser"
-    public_key = file("c:/Users/charl/.ssh/azurekey.pub")
+  storage_image_reference {
+    id = data.azurerm_shared_image.linux-with-tools.id
   }
 
-  os_disk {
-    caching = "ReadWrite"
-    storage_account_type = "Standard_LRS"
-  }
-
-  source_image_reference {
-    publisher = "Canonical"
-    offer = "UbuntuServer"
-    sku = "18_04-lts-gen2"
-    version = "latest"
-  }
-
-  provisioner "local-exec" {
-    command = templatefile("${path.module}/linux-ssh-script.tpl", {
-        hostname = self.public_ip_address
-        user = "azureuser"
-        identityfile = "~/.ssh/azurekey"
-    })
-    interpreter = [ "back", "-c" ]
+  storage_os_disk {
+    name              = "dev-vm-osDick"
+    caching           = "ReadWrite"
+    create_option     = "FromImage"
+    managed_disk_type = "Standard_LRS"
   }
 }
